@@ -1,0 +1,44 @@
+# --- System & IDE ---
+.DS_Store
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+
+# --- Environment & Secrets ---
+venv/
+.env
+.env.*
+!.env.example
+.secrets/
+
+# --- Local Data Storage ---
+# Protects your mock data and dead-letter queues
+data/
+
+# --- Terraform ---
+# Infrastructure state and local configuration
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.workspaces/
+.terraformrc
+terraform.rc
+
+# --- Logs & Performance ---
+crash.log
+crash.*.log
+*.log
+
+# --- Docker & Build Artifacts ---
+# If you build local images or binary caches
+dist/
+build/
+*.egg-info/
