@@ -1,4 +1,63 @@
-confluent-kafka[avro]==2.4.0
-faker==30.8.0
+# Core Data Streaming & Processing
 pyspark==3.5.0
 delta-spark==3.1.0
+confluent-kafka==2.4.0
+
+# Data Serialization & Avro Contracts
+avro==1.12.1
+fastavro==1.12.2
+msgpack==1.1.0
+
+# Testing & Mock Data Generation
+Faker==30.8.0
+
+# API, HTTP, & Network Communications
+requests==2.34.2
+httpx==0.28.1
+httpcore==1.0.9
+h11==0.16.0
+urllib3==2.7.0
+idna==3.16
+certifi==2026.5.20
+charset-normalizer==3.4.7
+
+# Security, Encryption, & Authentication
+cryptography==48.0.0
+cffi==2.0.0
+pycparser==3.0
+Authlib==1.7.2
+joserfc==1.6.7
+
+# Async & Concurrency Helpers
+anyio==4.13.0
+exceptiongroup==1.3.1
+
+# System, Core Utilities, & Metadata
+py4j==0.10.9.7
+cachetools==7.1.4
+attrs==26.1.0
+python-dateutil==2.9.0.post0
+typing_extensions==4.15.0
+importlib_metadata==6.8.0
+zipp==4.1.0
+six==1.17.0
+
+# Modern Data Stack - Gold Layer Analytics Engine
+dbt-core==1.8.0
+dbt-duckdb==1.8.0
+duckdb==1.0.0
+dbt-common==1.3.0
+dbt-adapters==1.1.1
+
+# dbt Ecosystem Core Dependencies (Version Balanced)
+dbt-semantic-interfaces==0.5.1
+dbt-extractor==0.6.0
+agate==1.9.1
+protobuf==4.25.9
+pathspec==0.12.1
+logbook==1.5.3
+isodate==0.6.1
+sqlparse==0.5.5
+networkx==3.4.2
+daff==1.4.2
+minimal-snowplow-tracker==0.0.2

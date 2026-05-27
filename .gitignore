@@ -42,3 +42,20 @@ crash.*.log
 dist/
 build/
 *.egg-info/
+
+spark-warehouse/
+metastore_db/
+derby.log
+checkpoints/
+
+# --- dbt (Data Build Tool) ---
+# Ignores compiled SQL code and downloaded dbt plugins
+target/
+dbt_packages/
+logs/
+
+# --- DuckDB ---
+# CRITICAL: Do NOT push your actual physical database files!
+*.duckdb
+*.duckdb.wal
+finstream_gold.duckdb

@@ -1,0 +1,10 @@
+gold_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: 'finstream_gold.duckdb'
+      extensions:
+        - delta
+      # This is the magic link: We attach DuckDB directly to your PySpark Silver folder
+      

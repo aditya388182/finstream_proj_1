@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: silver_layer
+    tables:
+      - name: transactions
+        meta:
+          # Tells DuckDB exactly how to read the PySpark Delta output
+          external_location: "delta_scan('../data/silver/transactions')"
