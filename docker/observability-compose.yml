@@ -30,6 +30,9 @@ services:
       - "9308:9308"
     restart: unless-stopped
     networks:
-      default:
-        name: pipeline_default
-        external: true
+      - pipeline_net  # Use a simple named reference here
+
+networks:
+  pipeline_net:
+    name: pipeline_default  # Put the actual external name down here
+    external: true
