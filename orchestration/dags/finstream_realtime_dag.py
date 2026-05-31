@@ -45,6 +45,13 @@ with DAG(
         task_id='data_quality_check',
         bash_command='cd /opt/airflow && export PYTHONPATH=/opt/airflow && python src/data_quality/run_checkpoint.py'
     )
+    
+    celebrate = BashOperator(
+        task_id='deployment_success',
+        bash_command='echo "CI/CD Pipeline is fully operational!"'
+    )
 
-    # Define the Sequence
-    gen_data >> bronze >> silver >> gold >> quality
+    # Update the sequence to include the new task
+    gen_data >> bronze >> silver >> gold >> quality >> celebrate
+
+    
