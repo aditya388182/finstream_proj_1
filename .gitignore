@@ -59,3 +59,16 @@ logs/
 *.duckdb
 *.duckdb.wal
 finstream_gold.duckdb
+
+# --- Airflow ---
+# Ignore ephemeral logs and local database state
+airflow/logs/
+airflow/airflow.db
+airflow/airflow-webserver.pid
+
+# --- Great Expectations ---
+# Ignore local reports that should not be in version control
+gx/uncommitted/
+
+# --- IDE Metadata (General) ---
+.DS_Store

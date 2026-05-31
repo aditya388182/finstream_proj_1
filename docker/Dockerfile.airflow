@@ -1,0 +1,30 @@
+# 1. Start with the official Airflow image, explicitly using Python 3.10
+FROM apache/airflow:2.8.1-python3.10
+
+# 2. Switch to root to install system-level dependencies
+USER root
+
+# 3. Install Java 17 (Required for PySpark)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
+  && apt-get autoremove -yqq --purge \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# 4. Switch back to the airflow user to install Python packages
+USER airflow
+
+# 5. Install ALL FinStream pipeline dependencies (Explicitly defining transitive engines)
+RUN pip install --no-cache-dir \
+    faker \
+    confluent-kafka \
+    fastavro \
+    requests \
+    pyspark==3.5.0 \
+    delta-spark==3.1.0 \
+    dbt-core \
+    dbt-duckdb \
+    duckdb \
+    duckdb-engine \
+    great_expectations==0.18.19 \
+    sqlalchemy

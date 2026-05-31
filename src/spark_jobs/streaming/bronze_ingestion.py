@@ -53,11 +53,11 @@ def run_bronze_ingestion():
     print("Bronze Ingestion Engine Online. Connecting to Kafka...")
 
     # 1. Read Raw Kafka Stream
-    # We connect to the EXTERNAL walkie-talkie (localhost:9092)
+    # Configured to look for the internal cluster listener name
     df_raw = (
         spark.readStream
         .format("kafka")
-        .option("kafka.bootstrap.servers", "localhost:9092")
+        .option("kafka.bootstrap.servers", "kafka:29092")
         .option("subscribe", "transactions-raw")
         .option("startingOffsets", "earliest")
         .option("failOnDataLoss", "false") # Prevents crashes if Kafka deletes old logs
@@ -83,7 +83,8 @@ def run_bronze_ingestion():
         df_parsed.writeStream
         .foreachBatch(process_micro_batch)
         .option("checkpointLocation", "data/bronze/_checkpoints/transactions")
-        .trigger(processingTime="5 seconds")
+        # CHANGED: Tell Spark to process the current bucket and shut down!
+        .trigger(availableNow=True)
         .start()
     )
 

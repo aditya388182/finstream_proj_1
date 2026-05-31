@@ -27,6 +27,7 @@ def run_silver_cleansing():
         )
         # Removed is_international since it doesn't exist in your Bronze schema yet
     )
+    
     # 3. The Senior Engineer Trick: Watermarking & Deduplication
     # Fraud streams often receive the exact same credit card swipe twice due to network glitches.
     # We tell Spark to keep state for 10 minutes (the watermark) and drop any row
@@ -44,6 +45,8 @@ def run_silver_cleansing():
         df_silver.writeStream.format("delta")
         .outputMode("append")
         .option("checkpointLocation", checkpoint_path)
+        # CHANGED: Tell Spark to process the current bucket and shut down!
+        .trigger(availableNow=True)
         .start(silver_path)
     )
 

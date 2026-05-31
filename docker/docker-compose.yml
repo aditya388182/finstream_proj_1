@@ -11,10 +11,12 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
       
-      # The Dual-Listener Fix
+      # The Security Map defines our custom names
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT'
+      # The Listeners use our custom names
       KAFKA_LISTENERS: 'INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
-      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:29092,EXTERNAL://127.0.0.1:9092'
+      # The Advertised Listeners MUST match the custom names!
+      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:29092,EXTERNAL://host.docker.internal:9092'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
       
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
@@ -30,7 +32,10 @@ services:
     ports:
       - "8081:8081"
     environment:
-      environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      # FIX: Use standard PLAINTEXT client protocol to talk to the internal port
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://kafka:29092'
       SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8081'
+networks:
+  default:
+    name: finstream-net

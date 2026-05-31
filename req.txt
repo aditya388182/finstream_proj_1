@@ -61,3 +61,9 @@ sqlparse==0.5.5
 networkx==3.4.2
 daff==1.4.2
 minimal-snowplow-tracker==0.0.2
+
+
+# --- Data Quality, Validation, & Governance ---
+great_expectations==0.18.19
+sqlalchemy==2.0.30
+duckdb-engine==0.13.0

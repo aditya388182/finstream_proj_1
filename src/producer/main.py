@@ -12,10 +12,12 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 fake = Faker()
 schema_str = open("src/producer/schemas/transaction_value.avsc", "r").read()
 
-sr_client = SchemaRegistryClient({'url': 'http://127.0.0.1:8081'})
+# Configured to use the direct internal Docker container name and port
+sr_client = SchemaRegistryClient({'url': 'http://schema-registry:8081'})
 avro_serializer = AvroSerializer(sr_client, schema_str)
 
-producer = Producer({'bootstrap.servers': '127.0.0.1:9092'})
+# Configured to use the direct internal Docker network listener
+producer = Producer({'bootstrap.servers': 'kafka:29092'})
 
 def delivery_report(err, msg):
     if err is not None:
@@ -24,9 +26,10 @@ def delivery_report(err, msg):
         print(f"Produced record to {msg.topic()} partition [{msg.partition()}] @ offset {msg.offset()}")
 
 # 2. Producer Loop
-print("Starting FinStream Producer. Press Ctrl+C to stop.")
+print("Generating a batch of 100 FinStream transactions...")
 try:
-    while True:
+    # Changed from infinite 'while True:' to a finite 100-record batch
+    for _ in range(100):
         transaction = {
             "transaction_id": str(uuid4()),
             "user_id": fake.user_name(),
@@ -46,8 +49,11 @@ try:
             on_delivery=delivery_report
         )
         producer.poll(0)
-        time.sleep(1)  # Simulate real-time flow
+        
+        # Reduced sleep time so the batch completes in ~10 seconds
+        time.sleep(0.1) 
 except KeyboardInterrupt:
     pass
 finally:
     producer.flush()
+    print("Batch complete. Shutting down producer.")
