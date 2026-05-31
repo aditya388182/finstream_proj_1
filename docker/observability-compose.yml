@@ -34,5 +34,5 @@ services:
 
 networks:
   pipeline_net:
-    name: pipeline_default  # Put the actual external name down here
+    name: docker_default  # Put the actual external name down here
     external: true
