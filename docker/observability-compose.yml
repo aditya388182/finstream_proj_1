@@ -7,7 +7,8 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ../infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      # CHANGED: Now pointing to your monitoring folder
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     restart: unless-stopped
 
   grafana:
@@ -16,7 +17,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # Default login password
+      - GF_SECURITY_ADMIN_PASSWORD=admin 
     depends_on:
       - prometheus
     restart: unless-stopped
