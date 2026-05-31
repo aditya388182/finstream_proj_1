@@ -62,6 +62,7 @@ services:
   airflow-webserver:
     <<: *airflow-common
     command: webserver
+    user: "0:0"
     ports:
       - "8080:8080"
     depends_on:
@@ -74,6 +75,7 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    user: "0:0"
     depends_on:
       postgres:
         condition: service_healthy
