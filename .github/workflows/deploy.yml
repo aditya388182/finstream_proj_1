@@ -1,0 +1,32 @@
+name: Deploy FinStream to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: SSH into EC2 and Deploy
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd /home/ubuntu/pipeline
+          
+          # Pull the latest code from GitHub
+          git pull origin main
+          
+          # Restart the Docker containers to pick up new code
+          docker compose -f docker/docker-compose.yml up -d
+          docker compose -f docker/airflow-compose.yml up -d --build
+          
+          echo "Deployment Successful! The factory is running the latest code."
