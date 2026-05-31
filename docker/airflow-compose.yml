@@ -62,9 +62,6 @@ services:
   # 3. The Visual Dashboard
   airflow-webserver:
     <<: *airflow-common
-    # REPLACED command with entrypoint:
-    entrypoint: bash -c "pip install great_expectations && airflow webserver"
-    user: "0:0"
     ports:
       - "8080:8080"
     depends_on:
@@ -76,9 +73,6 @@ services:
   # 4. The Background Manager
   airflow-scheduler:
     <<: *airflow-common
-    # REPLACED command with entrypoint:
-    entrypoint: bash -c "pip install great_expectations && airflow scheduler"
-    user: "0:0"
     depends_on:
       postgres:
         condition: service_healthy
