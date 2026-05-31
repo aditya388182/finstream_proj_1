@@ -9,6 +9,8 @@ services:
     volumes:
       # CHANGED: Now pointing to your monitoring folder
       - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - pipeline_net  # ADDED: Connects Prometheus to the same network as the exporter
     restart: unless-stopped
 
   grafana:
@@ -20,6 +22,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin 
     depends_on:
       - prometheus
+    networks:
+      - pipeline_net  # ADDED: Connects Grafana to the same network for unified resolution
     restart: unless-stopped
 
   kafka-exporter:
