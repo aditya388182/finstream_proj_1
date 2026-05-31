@@ -29,3 +29,7 @@ services:
     ports:
       - "9308:9308"
     restart: unless-stopped
+    networks:
+  default:
+    name: pipeline_default
+    external: true
