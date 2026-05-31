@@ -59,9 +59,11 @@ services:
       - _AIRFLOW_WWW_USER_PASSWORD=admin
 
   # 3. The Visual Dashboard
+  # 3. The Visual Dashboard
   airflow-webserver:
     <<: *airflow-common
-    command: webserver
+    # REPLACED command with entrypoint:
+    entrypoint: bash -c "pip install great_expectations && airflow webserver"
     user: "0:0"
     ports:
       - "8080:8080"
@@ -74,7 +76,8 @@ services:
   # 4. The Background Manager
   airflow-scheduler:
     <<: *airflow-common
-    command: scheduler
+    # REPLACED command with entrypoint:
+    entrypoint: bash -c "pip install great_expectations && airflow scheduler"
     user: "0:0"
     depends_on:
       postgres:
