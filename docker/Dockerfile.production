@@ -1,0 +1,15 @@
+# Use a slim base for speed
+FROM apache/airflow:2.8.1-python3.10
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless && apt-get clean
+
+USER airflow
+# Copy ONLY what we need for execution
+COPY --chown=airflow:airflow ./src /opt/airflow/src
+COPY --chown=airflow:airflow ./gold_analytics /opt/airflow/gold_analytics
+COPY --chown=airflow:airflow ./orchestration/dags /opt/airflow/dags
+
+# Install requirements from a text file (Best practice for Cloud)
+COPY requirements.txt /opt/airflow/
+RUN pip install --no-cache-dir -r /opt/airflow/requirements.txt
