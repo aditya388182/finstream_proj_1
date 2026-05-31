@@ -61,6 +61,7 @@ services:
   # 3. The Visual Dashboard
   # 3. The Visual Dashboard
   airflow-webserver:
+    command: webserver
     <<: *airflow-common
     ports:
       - "8080:8080"
@@ -72,6 +73,7 @@ services:
 
   # 4. The Background Manager
   airflow-scheduler:
+    command: scheduler
     <<: *airflow-common
     depends_on:
       postgres:
