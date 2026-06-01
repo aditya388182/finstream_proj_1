@@ -13,12 +13,10 @@ fake = Faker()
 schema_str = open("src/producer/schemas/transaction_value.avsc", "r").read()
 
 # CHANGED: Now pointing to localhost to bridge from the EC2 host into the Docker network
-sr_client = SchemaRegistryClient({'url': 'http://localhost:8081'})
+sr_client = SchemaRegistryClient({'url': 'http://schema-registry:8081'})
 avro_serializer = AvroSerializer(sr_client, schema_str)
-
 # CHANGED: Now pointing to localhost on the external mapped port (9092)
-producer = Producer({'bootstrap.servers': 'localhost:9092'})
-
+producer = Producer({'bootstrap.servers': 'kafka:29092'})
 def delivery_report(err, msg):
     if err is not None:
         print(f"Delivery failed: {err}")
