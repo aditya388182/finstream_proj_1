@@ -16,7 +16,7 @@ services:
       # The Listeners use our custom names
       KAFKA_LISTENERS: 'INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
       # The Advertised Listeners MUST match the custom names!
-      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:29092,EXTERNAL://host.docker.internal:9092'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
       
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
