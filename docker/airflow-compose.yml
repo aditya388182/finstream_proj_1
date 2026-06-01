@@ -19,7 +19,7 @@ x-airflow-common:
       - AIRFLOW__CORE__BASE_LOG_FOLDER=/opt/airflow/logs
       - AIRFLOW__CORE__REMOTE_LOGGING=False
   volumes:
-    # Mount your Mac's folders directly into the Airflow container
+    # Mount your folders directly into the Airflow container
     - ../orchestration/dags:/opt/airflow/dags
     - ../orchestration/plugins:/opt/airflow/plugins
     - ../src:/opt/airflow/src
@@ -32,18 +32,6 @@ x-airflow-common:
       condition: service_healthy
 
 services:
-  # 0. The Folder Setup Agent (Runs as root to fix permissions)
-  volume-initializer:
-    image: alpine:latest
-    user: root
-    volumes:
-      - ../data:/opt/airflow/data
-    command: >
-      sh -c "mkdir -p /opt/airflow/data/bronze /opt/airflow/data/silver /opt/airflow/data/gold && 
-             chmod -R 777 /opt/airflow/data && 
-             chown -R 50000:0 /opt/airflow/data && 
-             echo 'Data volumes initialized and permissions granted.'"
-
   # 1. The Memory Brain (Database)
   postgres:
     image: postgres:13
@@ -72,8 +60,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      volume-initializer:
-        condition: service_completed_successfully
 
   # 3. The Visual Dashboard
   airflow-webserver:
@@ -84,8 +70,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      volume-initializer:
-        condition: service_completed_successfully
       airflow-init:
         condition: service_completed_successfully
 
@@ -96,8 +80,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      volume-initializer:
-        condition: service_completed_successfully
       airflow-init:
         condition: service_completed_successfully
 
