@@ -12,12 +12,12 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 fake = Faker()
 schema_str = open("src/producer/schemas/transaction_value.avsc", "r").read()
 
-# Configured to use the direct internal Docker container name and port
-sr_client = SchemaRegistryClient({'url': 'http://schema-registry:8081'})
+# CHANGED: Now pointing to localhost to bridge from the EC2 host into the Docker network
+sr_client = SchemaRegistryClient({'url': 'http://localhost:8081'})
 avro_serializer = AvroSerializer(sr_client, schema_str)
 
-# Configured to use the direct internal Docker network listener
-producer = Producer({'bootstrap.servers': 'kafka:29092'})
+# CHANGED: Now pointing to localhost on the external mapped port (9092)
+producer = Producer({'bootstrap.servers': 'localhost:9092'})
 
 def delivery_report(err, msg):
     if err is not None:
@@ -28,7 +28,7 @@ def delivery_report(err, msg):
 # 2. Producer Loop
 print("Generating a batch of 100 FinStream transactions...")
 try:
-    # Changed from infinite 'while True:' to a finite 100-record batch
+    # finite 100-record batch
     for _ in range(100):
         transaction = {
             "transaction_id": str(uuid4()),
