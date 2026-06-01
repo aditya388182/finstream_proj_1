@@ -36,13 +36,13 @@ terraform.rc
 crash.log
 crash.*.log
 *.log
+logs/
 
 # --- Docker & Build Artifacts ---
 # If you build local images or binary caches
 dist/
 build/
 *.egg-info/
-
 spark-warehouse/
 metastore_db/
 derby.log
@@ -50,9 +50,9 @@ checkpoints/
 
 # --- dbt (Data Build Tool) ---
 # Ignores compiled SQL code and downloaded dbt plugins
-target/
+gold_analytics/target/
+gold_analytics/logs/
 dbt_packages/
-logs/
 
 # --- DuckDB ---
 # CRITICAL: Do NOT push your actual physical database files!
@@ -69,6 +69,3 @@ airflow/airflow-webserver.pid
 # --- Great Expectations ---
 # Ignore local reports that should not be in version control
 gx/uncommitted/
-
-# --- IDE Metadata (General) ---
-.DS_Store
