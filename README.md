@@ -8,115 +8,262 @@
 ![Airflow](https://img.shields.io/badge/Apache%20Airflow-2.9+-017CEE?logo=apacheairflow)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
 
-**FinStream** is a real-time data pipeline that ingests synthetic financial transactions and processes them through a strict **Medallion Architecture** (Bronze → Silver → Gold). It uses Delta Lake, PySpark Structured Streaming, dbt, and Great Expectations to demonstrate streaming, lakehouse, and data quality patterns in a local environment.
+**FinStream** is a real-time data pipeline that ingests synthetic financial transactions and processes them through a strict **Medallion Architecture (Bronze → Silver → Gold)**.
 
-## What This Project Demonstrates
+It uses Delta Lake, PySpark Structured Streaming, dbt, and Great Expectations to demonstrate streaming, lakehouse, analytics engineering, and data quality patterns in a local environment.
+
+---
+
+# What This Project Demonstrates
 
 - Streaming data ingestion with **exactly-once semantics** using PySpark Structured Streaming and Delta Lake checkpoints.
+- **Strict Data Contracts** using Avro serialization and a containerized Confluent Schema Registry.
 - **Lakehouse implementation** with ACID transactions, schema evolution, and time travel on Bronze and Silver layers.
 - Data quality enforcement using **Great Expectations** as executable contracts on the Gold layer.
 - Analytical transformations for fraud velocity metrics built with **dbt + DuckDB**.
 - Observable pipeline using Airflow, Prometheus, and Grafana.
 
-## Prerequisites
+---
+
+# Prerequisites
 
 - Docker and Docker Compose
 - Python 3.11+
-- Minimum 16GB RAM recommended
+- Minimum 16 GB RAM recommended
 - macOS or Linux (tested on MacBook Air M2)
 
-## Data Model – Gold Layer
+---
 
-The Gold layer produces fraud velocity metrics:
+# Data Model – Gold Layer
 
-| Column                    | Description                                          |
-|---------------------------|------------------------------------------------------|
-| `user_id`                 | Unique account identifier                            |
-| `transaction_count_1h`    | Number of transactions in the last 1-hour window     |
-| `total_amount_1h`         | Total transaction amount in the last hour            |
-| `is_high_velocity_flag`   | Boolean flag for high-risk velocity patterns         |
+The Gold layer produces fraud velocity metrics.
 
-## Architecture Overview
+| Column | Description |
+|----------|------------|
+| `user_id` | Unique account identifier |
+| `transaction_count_1h` | Number of transactions in the last 1-hour window |
+| `total_amount_1h` | Total transaction amount in the last hour |
+| `is_high_velocity_flag` | Boolean flag for high-risk velocity patterns |
 
-![FinStream System Architecture](docs/images/finstream-architecture.png)
+---
 
-The diagram above shows the complete data flow: synthetic transactions are generated and published to Kafka, ingested into Delta Lake (Bronze), cleaned and validated in Silver, transformed into fraud analytics in Gold using dbt, and validated with Great Expectations before being served through dashboards and alerts.
+# Architecture Overview
 
-## Quick Start
+```text
+Producer (Faker + Avro)
+        ↓
+Apache Kafka + Schema Registry
+        ↓
+┌──────────────────────┐
+│   Bronze Layer       │ ← PySpark Structured Streaming + Delta Lake
+│   (raw transactions) │    (immutable, checkpointed)
+└──────────────────────┘
+        ↓
+┌──────────────────────┐
+│   Silver Layer       │ ← PySpark + Delta Lake
+│   (cleaned & validated) │ (schema enforcement, deduplication, DLQ)
+└──────────────────────┘
+        ↓
+┌──────────────────────┐
+│   Gold Layer         │ ← dbt transformations
+│   (analytics marts)  │    (fraud_velocity in DuckDB)
+└──────────────────────┘
+        ↓
+Great Expectations + Airflow + Grafana Monitoring
+```
+
+The diagram above shows the complete data flow:
+
+1. Synthetic transactions are generated using Faker.
+2. Events are serialized using Avro and validated through Schema Registry.
+3. Records are published to Kafka.
+4. PySpark Structured Streaming ingests events into the Bronze Delta Lake layer.
+5. Silver performs validation, deduplication, and DLQ routing.
+6. dbt transforms Silver data into fraud analytics models in Gold.
+7. Great Expectations validates business rules before downstream consumption.
+
+---
+
+# Quick Start
+
+Clone the repository:
 
 ```bash
-git clone https://github.com/aditya388182/finstream_proj_1.git
-cd finstream_proj_1
+git clone https://github.com/aditya388182/finstream_proj_1.git finstream_pipeline
+
+cd finstream_pipeline
+
 ./start.sh
 ```
 
-> **Note:** The first run may take 2–3 minutes as Docker pulls the required images and starts all services.
+> **Note:** The first run may take 2–3 minutes while Docker downloads images and starts all services.
 
-Once running:
+---
 
-- **Airflow**: http://localhost:8080 → Unpause `finstream_realtime_dag`
-- **Grafana**: http://localhost:3000
-- **Great Expectations Data Docs**: `gx/uncommitted/data_docs/`
+# Accessing Services
 
-## Project Structure
+## Airflow
 
+```text
+http://localhost:8080
 ```
+
+Unpause:
+
+```text
+finstream_realtime_dag
+```
+
+## Grafana
+
+```text
+http://localhost:3000
+```
+
+## Great Expectations Data Docs
+
+```text
+gx/uncommitted/data_docs/
+```
+
+---
+
+# Project Structure
+
+```text
 finstream_pipeline/
 ├── src/
-│   ├── producer/           # Data generator
+│   ├── producer/           # Data generator & Avro schemas
 │   ├── spark_jobs/         # Bronze & Silver processing
 │   └── data_quality/       # Great Expectations
+│
 ├── docker/                 # Docker Compose files
+│                            # Kafka, Schema Registry,
+│                            # Airflow, Grafana, etc.
+│
 ├── gold_analytics/         # dbt project (DuckDB)
 ├── gx/                     # Great Expectations expectations & checkpoints
 ├── orchestration/          # Airflow DAGs
 └── infrastructure/         # Terraform (optional)
 ```
 
-## Key Engineering Decisions
+---
 
-| Decision                        | Rationale                                                                 | Trade-off Accepted |
-|--------------------------------|---------------------------------------------------------------------------|--------------------|
-| **Delta Lake (Bronze & Silver)** | Adds ACID transactions, schema evolution, time travel, and efficient upserts for streaming workloads | Slightly higher storage overhead due to `_delta_log` directory |
-| **PySpark Structured Streaming** | Provides native exactly-once semantics, watermarks, and stateful processing through checkpoints | Higher memory and CPU usage than lightweight consumers |
-| **dbt + DuckDB for Gold**       | Enables fast local SQL transformations with strong modeling capabilities and no cloud infrastructure cost | Not designed for high concurrency or very large-scale analytics |
-| **Great Expectations**          | Supports declarative data contracts with automatic documentation and validation | Requires upfront effort to define and maintain expectation suites |
-| **Dead Letter Queue (DLQ)**     | Prevents malformed records from breaking the main pipeline                | Requires separate monitoring of DLQ volume and content |
+# Key Engineering Decisions
 
-## Data Quality & Validation
+| Decision | Rationale | Trade-off Accepted |
+|-----------|------------|-------------------|
+| Avro + Schema Registry | Enforces strict schema typing at the source and reduces network payload size compared to JSON | Additional infrastructure and more difficult topic inspection |
+| Delta Lake (Bronze & Silver) | Provides ACID transactions, schema evolution, time travel, and efficient streaming writes | Increased storage overhead from `_delta_log` metadata |
+| PySpark Structured Streaming | Exactly-once semantics, checkpoint recovery, watermarks, and stateful processing | Higher memory and CPU consumption |
+| dbt + DuckDB | Fast local analytics with maintainable SQL transformations and zero cloud cost | Single-node execution model |
+| Great Expectations | Declarative data contracts with validation and documentation generation | Ongoing expectation suite maintenance |
+| Dead Letter Queue (DLQ) | Isolates malformed records and protects the primary pipeline | Requires separate monitoring and investigation |
 
-Great Expectations validates critical business rules on the Gold layer. You can run validations independently using:
+---
+
+# Data Quality & Validation
+
+Great Expectations validates critical business rules on the Gold layer.
+
+Run validations manually:
 
 ```bash
 python -m src.data_quality.run_checkpoint
 ```
 
-Validation failures will also cause the Airflow DAG to fail, preventing bad data from reaching downstream consumers.
+Validation failures also cause the Airflow DAG to fail, preventing bad data from reaching downstream consumers.
 
-## Observability
+---
 
-- **Prometheus + Grafana** dashboards monitor pipeline health, processing lag, and data freshness.
-- **Delta Lake checkpoints** ensure fault-tolerant streaming with exactly-once guarantees.
-- **Airflow** orchestrates the batch components (dbt runs and data quality checks) and supports rapid failure recovery.
+# Observability
 
-## Development Environment
+The platform includes monitoring and operational visibility through:
 
-This project was developed and tested on a MacBook Air M2 with 16GB RAM using Docker Desktop.
+## Prometheus
 
-## Teardown
+Tracks:
+
+- Pipeline health
+- Service availability
+- Processing metrics
+
+## Grafana
+
+Visualizes:
+
+- Processing lag
+- Data freshness
+- Pipeline status
+
+## Airflow
+
+Provides:
+
+- Workflow orchestration
+- Retry management
+- Failure visibility
+
+## Delta Lake Checkpointing
+
+Provides:
+
+- Fault tolerance
+- Recovery after restarts
+- Exactly-once guarantees
+
+---
+
+# Development Environment
+
+This project was developed and tested on:
+
+- MacBook Air M2
+- 16 GB RAM
+- Docker Desktop
+- macOS
+
+---
+
+# Teardown
+
+Stop all services:
 
 ```bash
 docker compose -f docker/observability-compose.yml down
+
 docker compose -f docker/airflow-compose.yml down
+
 docker compose -f docker/docker-compose.yml down
 ```
 
-## Future Improvements
+---
 
-- Move from a single Docker-based Kafka broker to a multi-broker configuration or a managed Kafka service with Schema Registry.
-- Integrate Great Expectations validation as a blocking task directly inside the Airflow DAG.
-- Add automated testing for Spark jobs and dbt models.
-- Improve the local development experience for testing streaming jobs without requiring the full Docker stack.
-- Explore better testing strategies and incremental approaches for the dbt Gold layer.
-- Implement active real-time alerting by routing flagged transactions to a dedicated Kafka sink and triggering Slack webhooks.
-- Deploy a dedicated OLAP serving layer (e.g., Apache Spark Thrift Server or Trino) to expose the Gold tier for highly concurrent BI reporting.
+# Future Improvements
+
+## Infrastructure
+
+- Move from a local Kafka broker to a managed cloud service such as Confluent Cloud or AWS MSK.
+- Add multi-broker Kafka support.
+
+## Testing
+
+- Spark unit tests
+- dbt model tests
+- End-to-end integration tests
+
+## Developer Experience
+
+- Faster local testing for streaming jobs.
+- Reduced dependency on the full Docker stack.
+
+## Real-Time Alerting
+
+- Route high-risk fraud events into a dedicated Kafka topic.
+- Trigger Slack or PagerDuty notifications.
+
+## Analytics Serving
+
+- Apache Spark Thrift Server
+- Trino
+- Dedicated OLAP serving layer for BI workloads.
