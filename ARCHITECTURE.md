@@ -1,26 +1,28 @@
 # System Architecture & Design Decisions
 
-FinStream is a real-time data pipeline that ingests synthetic financial transactions and processes them through a Medallion Architecture (**Bronze → Silver → Gold**). This document explains the data flow, component choices, and key engineering trade-offs made during its design.
+FinStream is a real-time data pipeline that ingests synthetic financial transactions and processes them through a Medallion Architecture (**Bronze → Silver → Gold**).
+
+This document explains the data flow, component choices, and key engineering trade-offs made during its design.
 
 ---
 
-## Data Flow (Medallion Architecture)
+# Data Flow (Medallion Architecture)
 
 The pipeline follows a strict three-layer structure to maintain data immutability, enforce schema quality, and deliver analytics-ready data.
 
 ```text
-Producer (Faker + JSON)
+Producer (Faker + Avro)
         ↓
-Apache Kafka (Docker)
+Apache Kafka + Schema Registry
         ↓
 ┌─────────────────────────────┐
-│        Bronze Layer         │
-│      (raw transactions)     │
+│       Bronze Layer          │
+│     (raw transactions)      │
 │ PySpark Streaming + Delta   │
 └─────────────────────────────┘
         ↓
 ┌─────────────────────────────┐
-│        Silver Layer         │
+│       Silver Layer          │
 │   (cleaned & validated)     │
 │ PySpark + Delta Lake        │
 └─────────────────────────────┘
@@ -36,30 +38,37 @@ Great Expectations + Airflow + Grafana
 
 ---
 
-## 1. Event Generation (Source)
+# 1. Event Generation (Source)
 
 A Python-based producer generates synthetic financial transactions using the Faker library.
 
-The producer:
+Before publishing to the `transactions-raw` Kafka topic, the producer validates each payload against a strict Avro schema fetched dynamically from a containerized Confluent Schema Registry.
 
-- Creates synthetic transaction records
-- Formats events as JSON payloads
-- Publishes records continuously to the `transactions-raw` Kafka topic
+## Why This Matters
+
+This acts as a strict data contract at the source.
+
+Benefits include:
+
+- Prevention of malformed data
+- Guaranteed schema compatibility
+- Controlled schema evolution
+- Reduced network payload size compared to JSON
 
 ---
 
-## 2. Bronze Layer (Raw Ingestion)
+# 2. Bronze Layer (Raw Ingestion)
 
 A PySpark Structured Streaming job consumes the Kafka topic in real time.
 
-### Responsibilities
+## Responsibilities
 
-- Consumes raw Kafka events
-- Appends an ingestion timestamp (`_ingested_at`)
-- Writes records into a Delta Lake table
-- Maintains Spark checkpoints
+- Consume raw Kafka events
+- Append an ingestion timestamp (`_ingested_at`)
+- Write records into a Delta Lake table
+- Maintain Spark checkpoints
 
-### Why Bronze Exists
+## Why Bronze Exists
 
 The Bronze layer acts as the immutable historical audit trail.
 
@@ -70,48 +79,49 @@ All raw events are preserved exactly as received, allowing:
 - Backfills
 - Recovery from downstream failures
 
-### Reliability
+## Reliability
 
-Checkpoint data is stored on local disk.
+Checkpoint data is stored locally.
 
-If the streaming container restarts, Spark resumes processing from the last committed offset.
+If the streaming container restarts, Spark resumes processing from the exact Kafka offset where it previously stopped.
 
 ---
 
-## 3. Silver Layer (Cleansed & Conformed)
+# 3. Silver Layer (Cleansed & Conformed)
 
 A second PySpark process continuously reads from the Bronze Delta table.
 
-### Responsibilities
+## Responsibilities
 
-- Schema enforcement
-- Data validation
+- Schema enforcement and casting
 - Deduplication using `transaction_id`
 - Routing invalid records to a DLQ
 
-### Dead Letter Queue (DLQ)
+## Dead Letter Queue (DLQ)
 
 Records that fail validation (for example, missing critical fields) are written to a separate Delta table.
 
-This prevents malformed records from crashing the main streaming pipeline while preserving them for investigation.
+This prevents malformed records from crashing the primary streaming pipeline while preserving them for later investigation.
 
 ---
 
-## 4. Gold Layer (Business Aggregates)
+# 4. Gold Layer (Business Aggregates)
 
 dbt transforms Silver-layer data into analytical models focused on fraud detection.
 
-### Responsibilities
+## Responsibilities
 
 - Rolling transaction velocity calculations
 - Fraud-risk flag generation
 - Business-oriented analytical marts
 
-### Serving Layer
+## Serving Layer
 
-The final models are materialized in DuckDB, providing:
+The final models are materialized in DuckDB.
 
-- Fast analytical queries
+Benefits include:
+
+- Extremely fast analytical queries
 - SQL-based transformations
 - Zero cloud infrastructure cost
 
@@ -122,17 +132,37 @@ The final models are materialized in DuckDB, providing:
 The architecture relies primarily on built-in recovery mechanisms provided by Spark, Delta Lake, Airflow, and Kafka.
 
 | Failure Mode | Recovery Strategy |
-|-------------|------------------|
-| Spark container crash | Spark checkpointing allows recovery from the last committed Kafka offset after container restart. |
-| Kafka retention expiry | Bronze Delta Lake acts as the permanent source of truth for historical data. |
+|--------------|------------------|
+| Spark container crash | Spark checkpointing allows immediate recovery from the last committed Kafka offset after container restart. |
+| Kafka retention expiry | Bronze Delta Lake acts as the permanent source of truth for historical data; Kafka expiry does not result in data loss. |
 | Malformed data spikes | Invalid records are routed to the DLQ instead of terminating the streaming job. |
-| Gold-layer logic errors | Great Expectations failures stop downstream Airflow execution before serving bad data. |
+| Gold-layer logic errors | Great Expectations failures stop downstream Airflow execution, acting as a circuit breaker before serving bad data. |
 
 ---
 
 # Engineering Trade-offs
 
-## 1. Delta Lake vs. Standard Parquet
+## 1. Avro Serialization vs. JSON
+
+Data is serialized into Avro format using Confluent Schema Registry before entering Kafka.
+
+### Benefit
+
+- Compact binary format
+- Reduced network bandwidth usage
+- Reduced storage requirements
+- Strong schema typing
+- Forward and backward compatibility
+
+### Trade-off
+
+- Additional infrastructure requirements
+- Dedicated Schema Registry service
+- Harder debugging because Kafka payloads are not human-readable
+
+---
+
+## 2. Delta Lake vs. Standard Parquet
 
 ### Benefit
 
@@ -143,11 +173,11 @@ Delta Lake provides:
 - Time travel
 - Safer concurrent reads and writes
 
-These features are especially valuable for streaming pipelines.
+These capabilities are especially valuable for streaming workloads.
 
 ### Trade-off
 
-Delta Lake maintains a `_delta_log` directory, increasing:
+Delta Lake maintains a `_delta_log` directory which increases:
 
 - File count
 - Metadata overhead
@@ -157,31 +187,30 @@ compared to plain Parquet.
 
 ---
 
-## 2. PySpark Structured Streaming vs. Lightweight Consumers
+## 3. PySpark Structured Streaming vs. Lightweight Consumers
 
 ### Benefit
 
 PySpark Structured Streaming provides:
 
+- Exactly-once processing
+- Stateful processing
+- Checkpoint recovery
 - Native Kafka integration
-- Exactly-once semantics
-- Checkpoint-based recovery
-
-This significantly reduces duplicate-processing risk.
 
 ### Trade-off
 
 Spark introduces:
 
 - JVM overhead
-- More memory consumption
+- Increased memory consumption
 - Greater operational complexity
 
-than lightweight Python consumers.
+compared to lightweight Python consumers.
 
 ---
 
-## 3. DuckDB + dbt vs. Cloud Data Warehouses
+## 4. DuckDB + dbt vs. Cloud Data Warehouses
 
 ### Benefit
 
@@ -189,27 +218,24 @@ DuckDB provides:
 
 - Full SQL support
 - Window functions
-- Joins and aggregations
 - Tight dbt integration
 - Zero cloud cost
 
-This makes it ideal for portfolio-scale analytics projects.
-
 ### Trade-off
 
-DuckDB is a single-node analytical engine and does not horizontally scale like:
+DuckDB is a single-node analytical engine and does not scale horizontally like:
 
 - Snowflake
 - BigQuery
-- Redshift
+- Databricks SQL
 
 ---
 
-## 4. Data Quality as a Contract (Great Expectations)
+## 5. Data Quality as a Contract (Great Expectations)
 
 ### Benefit
 
-Great Expectations enables:
+Great Expectations provides:
 
 - Declarative data quality rules
 - Automated validation
@@ -218,65 +244,66 @@ Great Expectations enables:
 
 ### Trade-off
 
-Expectation suites require ongoing maintenance as business rules evolve.
+Expectation suites require:
+
+- Significant initial setup
+- Ongoing maintenance as business rules evolve
 
 ---
 
-## 5. Orchestration vs. Streaming Isolation
+## 6. Orchestration vs. Streaming Isolation
 
 Airflow orchestrates:
 
 - dbt transformations
 - Great Expectations validations
 
-Airflow **does not run** the streaming ingestion jobs.
+Airflow does **not** run the streaming ingestion jobs.
 
 ### Benefit
 
-This separation prevents analytical task failures from interrupting continuous data ingestion.
+This separation prevents batch-processing failures from interrupting continuous data ingestion.
 
 ### Trade-off
 
-Two execution models must be managed:
+Two distinct execution models must be operated simultaneously:
 
 1. Long-running streaming services
 2. Scheduled batch workflows
-
-This increases operational complexity.
 
 ---
 
 # Future Architecture Capabilities
 
-The following enhancements are **not implemented today**, but represent potential future evolution toward an enterprise-grade deployment.
+The following enhancements are not implemented today but represent a roadmap toward an enterprise-grade deployment.
 
-### Confluent Schema Registry (Avro)
+## Cloud Managed Infrastructure
 
-Move from JSON to Avro serialization to:
+Migrate from local Docker containers to managed services such as:
 
-- Enforce schema compatibility
-- Reduce payload size
-- Improve producer/consumer contract management
+- AWS MSK (Kafka)
+- Databricks (Spark)
+- Snowflake (Analytics)
 
-### Automated DLQ Alerting
+## Automated DLQ Alerting
 
-Implement custom monitoring around the Dead Letter Queue to:
+Implement custom Prometheus exporters around the Dead Letter Queue to:
 
 - Detect malformed-data spikes
-- Generate operational alerts
-- Reduce manual monitoring effort
+- Generate PagerDuty alerts
+- Generate Slack notifications
 
-### Active Alerting Sinks
+## Active Alerting Sinks
 
-Publish high-risk fraud events from the Gold layer back into Kafka for:
+Publish high-risk fraud events from the Gold layer into a dedicated Kafka topic for:
 
 - Real-time notification systems
-- Downstream alerting services
-- Event-driven fraud workflows
+- Downstream fraud workflows
+- Event-driven integrations
 
 ---
 
-## Key Design Principle
+# Key Design Principle
 
 **Bronze preserves data, Silver enforces quality, and Gold delivers business value.**
 
